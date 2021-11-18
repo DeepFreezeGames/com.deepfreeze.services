@@ -3,7 +3,7 @@
     "displayName": "Services",
     "author": {"name": "Deep Freeze Games", "url": "https://github.com/DeepFreezeGames"},
     "registry": "https://github.com/DeepFreezeGames/com.deepfreeze.services.git",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "unity": "2018.1",
     "description": "A Unity Package Manager package that is used to manage sub-services in your game or application",
     "keywords": [

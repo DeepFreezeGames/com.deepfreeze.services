@@ -21,6 +21,18 @@ namespace Services.Editor
         private UnityEditor.Editor _activeServiceEditor;
 
         private IService _selectedService;
+
+        private GUIStyle _sidebarOptionStyle;
+
+        private void CreateStyles()
+        {
+            _sidebarOptionStyle = new GUIStyle(EditorStyles.miniButtonLeft)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                imagePosition = ImagePosition.ImageLeft,
+                fixedHeight = 22f
+            };
+        }
         
         public void OnFocused()
         {
@@ -52,6 +64,11 @@ namespace Services.Editor
 
         public void MainContent()
         {
+            if (_sidebarOptionStyle == null)
+            {
+                CreateStyles();
+            }
+            
             EditorGUILayout.BeginHorizontal();
             {
                 DrawSidebar();
@@ -60,18 +77,37 @@ namespace Services.Editor
             EditorGUILayout.EndHorizontal();
         }
 
+        private string GetServiceStateIcon(ServiceState state)
+        {
+            switch (state)
+            {
+                case ServiceState.Stopped:
+                    return "d_winbtn_mac_min@2x";
+                case ServiceState.Starting:
+                    return "d_winbtn_mac_max_h@2x";
+                case ServiceState.Error:
+                    return "d_console.erroricon";
+                case ServiceState.Running:
+                    return "d_winbtn_mac_max@2x";
+                case ServiceState.Stopping:
+                    return "d_winbtn_mac_min_h@2x";
+                default:
+                    return "console.erroricon";
+            }
+        }
+
         private void DrawSidebar()
         {
             EditorGUILayout.BeginVertical("box", GUILayout.Width(250));
             {
                 _scrollPosSidebar = EditorGUILayout.BeginScrollView(_scrollPosSidebar);
                 {
-                    foreach (var activeService in ServiceManager.EditorActiveServices)
+                    foreach (var (serviceKey, serviceValue) in ServiceManager.EditorActiveServices)
                     {
-                        GUI.color = _selectedService == activeService.Value ? Color.cyan : Color.white;
-                        if (GUILayout.Button(activeService.Key.Name))
+                        GUI.color = _selectedService == serviceValue ? Color.cyan : Color.white;
+                        if (GUILayout.Button(new GUIContent(serviceKey.Name, EditorGUIUtility.IconContent(GetServiceStateIcon(serviceValue.State)).image), _sidebarOptionStyle))
                         {
-                            SelectService(activeService.Value);
+                            SelectService(_selectedService == serviceValue ? null : serviceValue);
                             GUI.FocusControl(null);
                         }
                         GUI.color = Color.white;
