@@ -159,7 +159,7 @@ namespace Services.Editor
             
             foreach (var fieldInfo in _fields)
             {
-                if (fieldInfo.IsPrivate)
+                if (fieldInfo.IsPrivate || fieldInfo.IsInitOnly)
                 {
                     EditorGUILayout.LabelField(fieldInfo.Name, fieldInfo.GetValue(instance).ToString());
                     continue;
@@ -172,7 +172,7 @@ namespace Services.Editor
 
             foreach (var propertyInfo in _properties)
             {
-                if (propertyInfo.SetMethod!= null && propertyInfo.SetMethod.IsPublic)
+                if (propertyInfo.SetMethod != null && propertyInfo.SetMethod.IsPublic && propertyInfo.CanWrite)
                 {
                     propertyInfo.SetValue(instance, MakeFieldForType(propertyInfo.PropertyType, propertyInfo.Name, propertyInfo.GetValue(instance)));
                 }
