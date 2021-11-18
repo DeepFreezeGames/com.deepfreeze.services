@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Events.Runtime;
 using UnityEngine;
@@ -16,6 +17,11 @@ namespace Services.Runtime
         /// </summary>
         public static Dictionary<Type, IService> EditorActiveServices => Services;
         #endif
+
+        static ServiceManager()
+        {
+            Application.quitting += StopAllServices;
+        }
 
         /// <summary>
         /// Starts the <see cref="IService"/> of the given type if it is not already running and returns the active instance
@@ -67,6 +73,18 @@ namespace Services.Runtime
 
             service = default;
             return false;
+        }
+        
+        /// <summary>
+        /// Stops all services currently registered
+        /// </summary>
+        public static void StopAllServices()
+        {
+            var services = Services.Keys.ToArray();
+            foreach (var service in services)
+            {
+                Services[service].Shutdown();
+            }
         }
 
         /// <summary>
