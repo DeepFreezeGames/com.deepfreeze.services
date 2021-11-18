@@ -1,10 +1,13 @@
 {
-    "name": "Services.Runtime",
+    "name": "Services.Editor",
     "rootNamespace": "",
     "references": [
-        "GUID:a6319fc87f348f046a1c46db5d3253c9"
+        "GUID:101494581c1a3fd40bb49859c6ea7284",
+        "GUID:8dd7677f66473d646a602acce84bf016"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

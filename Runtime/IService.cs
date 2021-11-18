@@ -1,14 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Services.Runtime
 {
     public interface IService
     {
-        Action onInitialize { get; }
-        Action onCleanup { get; }
+        event EventHandler Terminated;
+        
+        ServiceState State { get; }
 
-        void Initialize();
-
-        void Cleanup();
+        void Shutdown();
     }
 }

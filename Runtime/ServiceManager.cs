@@ -1,57 +1,100 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
+using Events.Runtime;
 using UnityEngine;
 
 namespace Services.Runtime
 {
-    [Serializable]
-    public class ServiceManager
+    public static class ServiceManager
     {
-        private Dictionary<Type, IService> _services = new Dictionary<Type, IService>();
+        private static readonly Dictionary<Type, IService> Services = new Dictionary<Type, IService>();
+        
+        #if UNITY_EDITOR
+        /// <summary>
+        /// An editor-only hook for getting all active <see cref="IService"/>s that are currently registered
+        /// </summary>
+        public static Dictionary<Type, IService> EditorActiveServices => Services;
+        #endif
 
         /// <summary>
-        /// Registers the service. This should be done after the service is initialized 
+        /// Starts the <see cref="IService"/> of the given type if it is not already running and returns the active instance
         /// </summary>
-        public bool RegisterService<T>(IService service) where T : IService
+        public static T StartService<T>() where T : IService
         {
-            if (_services.ContainsKey(typeof(T)))
+            if (!HasService<T>())
             {
-                Debug.LogWarning($"A service of type {typeof(T).Name} is already registered");
-                return false;
+                Debug.LogWarning($"A service of type {typeof(T).FullName} is already registered");
+                var newService = (T)((typeof(T).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, CallingConventions.HasThis, Type.EmptyTypes, null)?.Invoke(null)));
+                if (newService == null)
+                {
+                    Debug.LogError($"Failed to start service\nService type: {typeof(T).FullName}");
+                    return default;
+                }
+                else
+                {
+                    Debug.Log($"Service started: {typeof(T).Name}");
+                }
+                
+                newService.Terminated += OnServiceTerminated;
+                Services.Add(typeof(T), newService);
+                EventManager.TriggerEvent(new ServiceRegisteredEvent((T)Services[typeof(T)]));
             }
-            
-            _services.Add(typeof(T), service);
-            return true;
+
+            return (T)Services[typeof(T)];
+        }
+
+        /// <summary>
+        /// A light-weight way of checking if a service is active
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static bool HasService<T>() where T : IService
+        {
+            return Services.ContainsKey(typeof(T));
         }
 
         /// <summary>
         /// Tries to get the registered service of the given type. Will return the service if it is found
         /// </summary>
-        public bool TryGetService<T>(out IService service) where T : IService
+        public static bool TryGetService<T>(out T service) where T : IService
         {
-            if (_services.ContainsKey(typeof(T)))
+            if (Services.ContainsKey(typeof(T)))
             {
-                service = _services[typeof(T)];
+                service = (T)Services[typeof(T)];
                 return true;
             }
 
-            service = null;
+            service = default;
             return false;
         }
 
         /// <summary>
         /// Cleans up and remove the service if it is registered
         /// </summary>
-        public bool RemoveService<T>() where T : IService
+        public static bool StopService<T>() where T : IService
         {
-            if (!_services.ContainsKey(typeof(T)))
+            if (TryGetService<T>(out var service))
             {
-                return false;
+                EventManager.TriggerEvent(new ServiceStoppedEvent(service));
+                service.Shutdown();
+                return true;
             }
-            
-            _services[typeof(T)].Cleanup();
-            _services.Remove(typeof(T));
-            return true;
+
+            Debug.LogWarning($"Trying to shutdown a service that isn't registered\nService Type: {typeof(T).FullName}");
+            return false;
+        }
+
+        /// <summary>
+        /// When an <see cref="IService"/> is terminated, listen to it's delegate and remove the service for the list
+        /// of registered <see cref="IService"/>s
+        /// </summary>
+        /// <param name="sender">The instance of the <see cref="IService"/></param>
+        /// <param name="eventArgs">This should always be <see cref="EventArgs.Empty"/></param>
+        private static void OnServiceTerminated(object sender, EventArgs eventArgs)
+        {
+            var service = (IService)sender;
+            Services.Remove(service.GetType());
         }
     }
 }
