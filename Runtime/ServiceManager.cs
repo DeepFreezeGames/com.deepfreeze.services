@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using Events.Runtime;
+using System.Threading.Tasks;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Services.Runtime
 {
@@ -18,6 +20,8 @@ namespace Services.Runtime
         public static Dictionary<Type, IService> EditorActiveServices => Services;
         #endif
 
+        private static IService _serviceCache;
+
         static ServiceManager()
         {
             Application.quitting += StopAllServices;
@@ -26,28 +30,32 @@ namespace Services.Runtime
         /// <summary>
         /// Starts the <see cref="IService"/> of the given type if it is not already running and returns the active instance
         /// </summary>
-        public static T StartService<T>() where T : IService
+        public static async Task<T> GetService<T>() where T : IService
         {
             if (!HasService<T>())
             {
-                Debug.LogWarning($"A service of type {typeof(T).FullName} is already registered");
                 var newService = (T)((typeof(T).GetConstructor(BindingFlags.Instance | BindingFlags.Public, null, CallingConventions.HasThis, Type.EmptyTypes, null)?.Invoke(null)));
                 if (newService == null)
                 {
-                    Debug.LogError($"Failed to start service\nService type: {typeof(T).FullName}");
+                    LogError($"Failed to start service\nService type: {typeof(T).FullName}");
                     return default;
                 }
-                else
-                {
-                    Debug.Log($"Service started: {typeof(T).Name}");
-                }
-                
+
+                Log($"Service starting: {typeof(T).Name}");
+
                 newService.Terminated += OnServiceTerminated;
                 Services.Add(typeof(T), newService);
-                EventManager.TriggerEvent(new ServiceRegisteredEvent((T)Services[typeof(T)]));
             }
 
-            return (T)Services[typeof(T)];
+            _serviceCache = Services[typeof(T)];
+            while (_serviceCache.State != ServiceState.Running)
+            {
+                await Task.Yield();
+            }
+            
+            Log($"Service running: {typeof(T).Name}");
+
+            return (T)_serviceCache;
         }
 
         /// <summary>
@@ -90,17 +98,27 @@ namespace Services.Runtime
         /// <summary>
         /// Cleans up and remove the service if it is registered
         /// </summary>
-        public static bool StopService<T>() where T : IService
+        public static async Task StopService<T>() where T : IService
         {
             if (TryGetService<T>(out var service))
             {
-                EventManager.TriggerEvent(new ServiceStoppedEvent(service));
-                service.Shutdown();
-                return true;
+                if (service.State != ServiceState.Stopping && service.State != ServiceState.Stopped)
+                {
+                    Log($"Stopping service: {typeof(T).Name}");
+                    service.Shutdown();
+                }
+                
+                while (service.State != ServiceState.Stopped)
+                {
+                    await Task.Yield();
+                }
+                
+                Log($"Service stopped: {typeof(T).Name}");
+
+                return;
             }
 
-            Debug.LogWarning($"Trying to shutdown a service that isn't registered\nService Type: {typeof(T).FullName}");
-            return false;
+            LogWarning($"Trying to shutdown a service that isn't registered\nService Type: {typeof(T).FullName}");
         }
 
         /// <summary>
@@ -114,5 +132,25 @@ namespace Services.Runtime
             var service = (IService)sender;
             Services.Remove(service.GetType());
         }
+
+        #region LOGGING
+        [Conditional("SERVICES_LOG")]
+        private static void Log(string message)
+        {
+            Debug.Log($"[SERVICES] {message}");
+        }
+
+        [Conditional("SERVICES_LOGWARNING"), Conditional("DEBUG")]
+        private static void LogWarning(string message)
+        {
+            Debug.LogWarning($"[SERVICES] {message}");
+        }
+
+        [Conditional("SERVICES_LOGERROR"), Conditional("DEBUG")]
+        private static void LogError(string message)
+        {
+            Debug.LogError($"[SERVICES] {message}");
+        }
+        #endregion
     }
 }

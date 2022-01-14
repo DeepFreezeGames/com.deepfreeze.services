@@ -1,9 +1,7 @@
 {
     "name": "Services.Runtime",
     "rootNamespace": "",
-    "references": [
-        "GUID:a6319fc87f348f046a1c46db5d3253c9"
-    ],
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
