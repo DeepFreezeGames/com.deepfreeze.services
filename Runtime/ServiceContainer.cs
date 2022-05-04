@@ -9,28 +9,37 @@ using Debug = UnityEngine.Debug;
 
 namespace Services.Runtime
 {
-    public static class ServiceManager
+    public class ServiceContainer
     {
-        private static readonly Dictionary<Type, IService> Services = new Dictionary<Type, IService>();
+        private readonly Dictionary<Type, IService> Services = new Dictionary<Type, IService>();
         
         #if UNITY_EDITOR
         /// <summary>
         /// An editor-only hook for getting all active <see cref="IService"/>s that are currently registered
         /// </summary>
-        public static Dictionary<Type, IService> EditorActiveServices => Services;
+        public Dictionary<Type, IService> EditorActiveServices => Services;
+
+        /// <summary>
+        /// An editor-only hook to view all active <see cref="ServiceContainer"/>s
+        /// </summary>
+        public static List<ServiceContainer> EditorActiveContainers { get; } = new();
         #endif
 
-        private static IService _serviceCache;
+        private IService _serviceCache;
 
-        static ServiceManager()
+        public ServiceContainer()
         {
+            #if UNITY_EDITOR
+            EditorActiveContainers.Add(this);
+            #endif
+            
             Application.quitting += StopAllServices;
         }
 
         /// <summary>
         /// Starts the <see cref="IService"/> of the given type if it is not already running and returns the active instance
         /// </summary>
-        public static async Task<T> GetService<T>() where T : IService
+        public async Task<T> GetService<T>() where T : IService
         {
             if (!HasService<T>())
             {
@@ -63,7 +72,7 @@ namespace Services.Runtime
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public static bool HasService<T>() where T : IService
+        public bool HasService<T>() where T : IService
         {
             return Services.ContainsKey(typeof(T));
         }
@@ -71,7 +80,7 @@ namespace Services.Runtime
         /// <summary>
         /// Tries to get the registered service of the given type. Will return the service if it is found
         /// </summary>
-        public static bool TryGetService<T>(out T service) where T : IService
+        public bool TryGetService<T>(out T service) where T : IService
         {
             if (Services.ContainsKey(typeof(T)))
             {
@@ -86,7 +95,7 @@ namespace Services.Runtime
         /// <summary>
         /// Stops all services currently registered
         /// </summary>
-        public static void StopAllServices()
+        public void StopAllServices()
         {
             var services = Services.Keys.ToArray();
             foreach (var service in services)
@@ -98,7 +107,7 @@ namespace Services.Runtime
         /// <summary>
         /// Cleans up and remove the service if it is registered
         /// </summary>
-        public static async Task StopService<T>() where T : IService
+        public async Task StopService<T>() where T : IService
         {
             if (TryGetService<T>(out var service))
             {
@@ -127,7 +136,7 @@ namespace Services.Runtime
         /// </summary>
         /// <param name="sender">The instance of the <see cref="IService"/></param>
         /// <param name="eventArgs">This should always be <see cref="EventArgs.Empty"/></param>
-        private static void OnServiceTerminated(object sender, EventArgs eventArgs)
+        private void OnServiceTerminated(object sender, EventArgs eventArgs)
         {
             var service = (IService)sender;
             Services.Remove(service.GetType());

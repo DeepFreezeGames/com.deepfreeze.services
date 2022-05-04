@@ -102,15 +102,20 @@ namespace Services.Editor
             {
                 _scrollPosSidebar = EditorGUILayout.BeginScrollView(_scrollPosSidebar);
                 {
-                    foreach (var (serviceKey, serviceValue) in ServiceManager.EditorActiveServices)
+                    foreach (var serviceContainer in ServiceContainer.EditorActiveContainers)
                     {
-                        GUI.color = _selectedService == serviceValue ? Color.cyan : Color.white;
-                        if (GUILayout.Button(new GUIContent(serviceKey.Name, EditorGUIUtility.IconContent(GetServiceStateIcon(serviceValue.State)).image), _sidebarOptionStyle))
+                        foreach (var (serviceKey, serviceValue) in serviceContainer.EditorActiveServices)
                         {
-                            SelectService(_selectedService == serviceValue ? null : serviceValue);
-                            GUI.FocusControl(null);
+                            GUI.color = _selectedService == serviceValue ? Color.cyan : Color.white;
+                            if (GUILayout.Button(new GUIContent(serviceKey.Name, EditorGUIUtility.IconContent(GetServiceStateIcon(serviceValue.State)).image), _sidebarOptionStyle))
+                            {
+                                SelectService(_selectedService == serviceValue ? null : serviceValue);
+                                GUI.FocusControl(null);
+                            }
+                            GUI.color = Color.white;
                         }
-                        GUI.color = Color.white;
+                        
+                        GUILayout.Space(10);
                     }
                 }
                 EditorGUILayout.EndScrollView();
